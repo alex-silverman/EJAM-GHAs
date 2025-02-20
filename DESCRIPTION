@@ -11,7 +11,7 @@ Description: Web app and R tools to easily summarize
     type of facility, shapefile, or Census areas.
     Very fast identification of nearby blocks and distances, and 
     aggregation of indicators within each distance by site and overall.
-URL: https://usepa.github.io/EJAM, https://github.com/USEPA/EJAM
+URL: https://usepa.github.io/EJAM-open, https://github.com/USEPA/EJAM-open
 Depends: 
     R (>= 3.5)
 Imports:

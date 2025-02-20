@@ -767,7 +767,7 @@ doaggregate <- function(sites2blocks, sites2states_or_latlon=NA,
     results_overall <- cbind(results_overall, results_overall_wtdmeans) # many columns (the popwtd mean cols)
   }
   ############################################### #
-  ## >>> TEMPORARY PATCH UNTIL FORMULA FIXED - SEE ISSUE #498  https://github.com/USEPA/EJAM/issues/498 ####
+  
   if (!showdrinkingwater) {
     print(results_overall[ , .( drinking)])
     print(results_bysite[ , .(ejam_uniq_id,  drinking)])
