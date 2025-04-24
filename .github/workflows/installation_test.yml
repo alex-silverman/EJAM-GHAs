@@ -19,6 +19,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
         r-version: [4.3, 4.4, release]
         install-method: [github, url]  # Matrix for installation method
+    
+    env:
+      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -79,8 +83,6 @@ jobs:
       - name: Get Latest Release Tarball URL (gh CLI)
         id: get_release_url_gh
         if: matrix.install-method == 'url'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           LATEST_TAG=$(gh release list --repo "${{ github.repository }}" --limit 1 --json tagName --jq '.[0].tagName')
           TAR_URL="https://github.com/${{ github.repository }}/archive/refs/tags/$LATEST_TAG.tar.gz"
@@ -89,8 +91,6 @@ jobs:
 
     
       - name: Install EJAM (method- ${{ matrix.install-method }})
-        env:
-          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
           install.packages("remotes")
           if("${{ matrix.install-method }}" == "github") {
