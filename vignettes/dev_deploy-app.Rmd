@@ -1,0 +1,41 @@
+---
+title: "Deploy EJAM Application"
+description: "Updating versions of the live EJAM shiny app"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Deploy EJAM Application}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+While the servers hosting the EJAM web application are no longer up and running, this document outlines the application deployment process we used.
+
+## Update EJAM Application
+
+After updating Main in EJAM-open (see `dev_update-package` vignette) so that the latest version is public...
+
+1.  Run `rsconnect_manifest_update.R`, using EJAM-open as the repo in the `remotes::install_github()` command.
+
+    a.  In this way, we're updating the `manifest.json` file in EJAM, but with reference to EJAM-open
+    b.  It's important to use the public EJAM-open repo as it ensures the hosted site can install the EJAM package as a dependency. (It may not have access to the private EJAM repo)
+
+2.  Update Staging + Production servers
+
+    a.  Merge EJAM's Main branch into PUBLIC-EJSCREEN
+    b.  Ensure `isPublic` parameter is set to TRUE in the call to the `run_app()` function in `app.R`
+        i.  The `isPublic` flag determines whether to show the public or internal version of the application.
+    c.  PUBLIC-EJSCREEN is automatically connected to the public site, so changes to this branch will automatically be pulled into the site.
+
+3.  Update Deploy Posit server
+
+    a.  Merge EJAM's Main branch into deploy-posit
+    b.  Ensure `isPublic` parameter is set to FALSE
+    c.  deploy-posit is automatically connected to the development site, so changes to this branch will automatically be pulled into the site.
+
+4.  Merge Main back into development so that development has the updated `manifest.json` file. This ensures all branches are consistent.
+
+## Potential Improvements
+
+One way to improve this process is to modify the `isPublic` toggle to be an environment variable. This would allow us to set the value once in each application server, and not have to change it each time we push updates. Moreover, it makes testing the public and internal versions of the app easier to handle in the GitHub actions (see shinytests vignette.)

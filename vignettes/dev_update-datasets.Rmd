@@ -1,0 +1,105 @@
+---
+title: "Update EJAM Datasets"
+description: "Managing large {arrow} datasets used by EJAM app and package"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Update EJAM Datasets}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+The EJAM package and Shiny app make use of some large lookup tables that contain information on Census blockgroups, Census block internal points, Census block population weights, and EPA FRS facilities.
+
+To store these large files, we use the Apache arrow file format through the {arrow} R package, with file extension `.arrow`. This allows us to work with larger-than-memory data and store it outside of the EJAM package itself.
+
+As of 04/2025, there are currently 11 arrow files used by EJAM:
+
+### Census-related arrow files
+
+-   `bgid2fips.arrow`: crosswalk of EJAM blockgroup IDs (1-n) with 12-digit blockgroup FIPS codes
+-   `blockid2fips.arrow`: crosswalk of EJAM block IDs (1-n) with 15-digit block FIPS codes
+-   `blockpoints.arrow`: Census block internal points lat-lon coordinates, EJAM block ID
+-   `blockwts.arrow`: Census block population weight as share of blockgroup population, EJAM block and blockgroup ID
+-   `bgej.arrow`: blockgroup-level statistics of EJ variables
+-   `quaddata.arrow`: 3D spherical coordinates of Census block internal points, with EJAM block ID
+
+### FRS-related arrow files
+
+-   `frs.arrow`: data.table of EPA Facility Registry Service (FRS) regulated sites
+
+-   `frs_by_naics.arrow`: data.table of NAICS industry code(s) for each EPA-regulated site in Facility Registry Service
+
+-   `frs_by_sic.arrow`: data.table of SIC industry code(s) for each EPA-regulated site in Facility Registry Service
+
+-   `frs_by_programid.arrow`: data.table of Program System ID code(s) for each EPA-regulated site in the Facility Registry Service
+
+-   `frs_by_mact.arrow`: data.table of MACT NESHAP subpart(s) that each EPA-regulated site is subject to
+
+This document outlines how we will operationalize EJAM’s download, management, and in-app loading of these arrow datasets.
+
+Below is a description of a workable, default operationalization, followed by options for potential improvements via automation and processing efficiency.
+
+## Development/Setup
+
+1.  The arrow files are stored in a separate, public, Git-LFS-enabled GitHub repo (henceforth 'ejamdata')
+
+2.  Then, and any time the arrow datasets are updated, we update the ejamdata release version via the `push_to_ejam.yaml` workflow, thereby saving the arrow files with the release, to be downloaded automatically by EJAM
+
+3.  EJAM's `download_latest_arrow_data()` function does the following:
+
+    a.  Checks ejamdata repo's latest release/version.
+    b.  Checks user's EJAM package's ejamdata version, which is stored in `data/ejamdata_version.txt`.
+        i.  If the `data/ejamdata_version.txt` file doesn't exist, e.g. if it's the first time installing EJAM, it will be created at the end of the script.
+    c.  If the versions are different, download the latest arrow from the latest ejamdata release with `pb_download`. E.g.:
+
+```{r, eval=F}
+download_latest_arrow_data <- function(
+  varnames = .arrow_ds_names,
+  repository = 'USEPA/ejamdata',
+  envir = globalenv()
+) {
+  ...
+  piggyback::pb_download(
+    file = varnames,
+    dest = app_sys('data'),
+    repo = repository, 
+    tag = "latest",
+    use_timestamps = FALSE
+  )
+}
+```
+
+4.  We add a call to this function in the onAttach script (via the `dataload_dynamic` function) so it runs and ensures the latest arrow files are downloaded when user loads EJAM.
+
+## How it Works for the User
+
+1.  User installs EJAM
+    a.  `devtools::install_github("USEPA/EJAM")`
+
+2.  User loads EJAM as usual
+    a.  `library(EJAM)`. This will trigger the new `download_latest_arrow_data()` function.
+
+3.  User runs EJAM as usual
+    a.  The `dataload_dynamic()` function will work as usual because the data are now stored in the `data` directory.
+
+## How Data is Updated in ejamdata
+
+1.  The process begins from within the EJAM repo, using the various `datacreate_*` scripts to create updated arrow datasets.
+
+2.  These files are then copied into a clone of the ejamdata repo and pushed to the repo
+
+3.  This triggers the `push_to_ejam.yaml` workflow that increments the latest release tag reflecting the new version and creates a new release
+
+## Potential Improvements
+
+### Making Code more Arrow-Friendly
+
+Problem: loading the data as tibbles/dataframes takes a long time
+
+Solution: We may be able to modify our code to be more arrow -friendly. This essentially keeps the analysis code as a sort of query, and only actually loads the results into memory when requested (via `collect()`) This dramatically reduces used memory, which would speed up processing times and avoid potential crashes resulting from not enough memory. However, this would require a decent lift to update the code in all places
+
+Pros: processing efficiency, significantly reduced memory usage
+
+Implementation: This has been mostly implemented by the `dataload_dynamic()` function, which contains a `return_data_table` parameter. If `FALSE`, the arrow file is loaded as an .arrow dataset, rather than a tibble/dataframe.

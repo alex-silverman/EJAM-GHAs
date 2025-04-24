@@ -1,0 +1,83 @@
+---
+title: "Update EJAM Package"
+description: "Steps for incrementing package version and GitHub releases"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Update EJAM Package}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This document outlines the general development process for updating EJAM, including the surrounding GitHub infrastructure.
+
+## Update package
+
+1.  Run `devtools::document()` in Development branch
+
+2.  Update EJAM version in DESCRIPTION in Dev (e.g. to 2.32.1 – tying it to EJScreen)
+
+3.  Update `News.md` in Dev
+
+    a.  Either directly or some script that compiles an R script into the NEWS.md file
+
+4.  Merge Development into Main
+
+5.  Update EJAM release using the `NEWS.md` for the changelog, tagging to the main branch. Increment using the numbering x.y.z.
+
+## Making updates public
+
+Since EJAM is not currently public, to make the EJAM package installable, the updates need to be pushed to our public EJAM-open repo. These are the steps:
+
+1.  If not already done, add EJAM-open repo as a remote for our local main branch:
+
+```{bash, eval=F}
+git remote add EJAM-open git@github.com:USEPA/EJAM-open.git
+```
+
+2.  Push to EJAM-open's main branch:
+
+```{bash, eval=F}
+git push EJAM-open main:main
+```
+
+3.  If you want to squash commits
+
+    a.  If you want to add a new squashed commit, starting in Main, EJAM:
+
+    ```{bash, eval=F}
+    git checkout -b squash-temp
+    git reset --soft #SHA OF PREVIOUS MAIN COMMIT
+    git commit -m "Your squashed commit message"
+    git push --force EJAM-open squash-temp:main
+    ```
+
+    b.  If you just want EJAM-open to end with a single squash commit, starting in Main in EJAM:
+
+    ```{bash, eval=F}
+    git checkout –orphan squash-temp
+    git add .
+    git commit -m "Publishing EJAM"
+    git push --force EJAM-open squash-temp:main
+    git -M main
+    ```
+
+4.  Update EJAM-open release using a similar process as updating the EJAM release.
+
+## Test Installation
+
+To ensure that, after changes are made, EJAM can still be installed by users with various operating systems and versions of R, a workflow file, `.github/workflows/installation_test.yaml`, is triggered by any pushes to EJAM-open's main branch. This file tests installation with the following matrix of options:
+
+1.  **OS**: Latest Ubuntu, Windows, macOS
+
+2.  **R version**: 4.3 and 4.4
+
+3.  **Install Method**: `remotes::install_url()` and `remotes::install_github()`
+
+### Updating Test Installation Script
+
+You may want to update this test script in the future for a couple reasons:
+
+-   Remove older versions of R to test on
+-   Add new system libraries required by newly added packages
