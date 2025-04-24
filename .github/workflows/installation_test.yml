@@ -92,6 +92,7 @@ jobs:
 
     
       - name: Install EJAM (method- ${{ matrix.install-method }})
+        if: "!(matrix.install-method == 'url' && matrix matrix.r-version == '4.3' && matrix.os == 'macOS')"
         run: |
           install.packages("remotes")
           if("${{ matrix.install-method }}" == "github") {
